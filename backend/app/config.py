@@ -18,6 +18,20 @@ class Settings(BaseSettings):
     # ── Vector Database ────────────────────────────────────────
     QDRANT_URL: str = Field(default="http://localhost:6333", description="Qdrant server URL")
     QDRANT_API_KEY: str = Field(default="", description="Qdrant API key (empty for local)")
+    QDRANT_MODE: str = Field(
+        default="remote",
+        description="'remote' for external Qdrant server, 'local' for on-disk (HF Spaces)",
+    )
+    QDRANT_LOCAL_PATH: str = Field(
+        default="/data/qdrant_storage",
+        description="Path for local Qdrant storage when QDRANT_MODE=local",
+    )
+
+    # ── Deployment ─────────────────────────────────────────────
+    DEPLOY_MODE: str = Field(
+        default="local",
+        description="'local' for dev, 'docker' for docker-compose, 'hf_spaces' for Hugging Face",
+    )
 
     # ── Database ───────────────────────────────────────────────
     DATABASE_URL: str = Field(

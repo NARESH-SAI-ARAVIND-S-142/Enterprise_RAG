@@ -1,3 +1,12 @@
+---
+title: DocuMind 2.0
+emoji: 🧠
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+pinned: false
+app_port: 7860
+---
 # DocuMind 2.0
 
 **The most advanced open-source RAG system — Production-grade, multi-user, agentic document intelligence.**

@@ -54,12 +54,17 @@ app = FastAPI(
 )
 
 # ── CORS Middleware ────────────────────────────────────────────
+# On HF Spaces, frontend and backend share the same origin via nginx
+_origins = ["*"] if settings.DEPLOY_MODE == "hf_spaces" else [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:7860",
+    "http://127.0.0.1:7860",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Next.js frontend
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

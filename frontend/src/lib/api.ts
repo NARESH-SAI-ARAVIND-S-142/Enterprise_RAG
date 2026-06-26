@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// When deployed on HF Spaces, NEXT_PUBLIC_API_URL is empty — all API
+// calls go to the same origin and nginx routes them to FastAPI.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 const api = axios.create({
   baseURL: API_BASE_URL,

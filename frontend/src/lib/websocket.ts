@@ -21,7 +21,13 @@ export class ChatWebSocket {
     this.token = token;
     this.handlers = handlers;
 
-    const wsBase = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
+    // Auto-detect WebSocket URL based on current origin for HF Spaces
+    let wsBase = process.env.NEXT_PUBLIC_WS_URL || "";
+    if (!wsBase && typeof window !== "undefined") {
+      const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+      wsBase = `${proto}//${window.location.host}`;
+    }
+    if (!wsBase) wsBase = "ws://localhost:8000";
     const url = `${wsBase}/chat/ws/${sessionId}?token=${token}`;
     this.ws = new WebSocket(url);
 

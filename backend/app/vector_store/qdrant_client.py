@@ -28,19 +28,35 @@ class TenantQdrantClient:
     Qdrant client with per-user collection namespacing.
     Each user's documents are stored in collection 'user_{user_id}_documents'.
     This ensures complete data isolation between tenants.
+
+    Supports two modes:
+    - 'remote': connects to an external Qdrant server (docker-compose)
+    - 'local': uses on-disk storage (HF Spaces / single container)
     """
 
     def __init__(self):
-        self.client = AsyncQdrantClient(
-            url=settings.QDRANT_URL,
-            api_key=settings.QDRANT_API_KEY or None,
-            timeout=30,
-        )
-        self._sync_client = QdrantClient(
-            url=settings.QDRANT_URL,
-            api_key=settings.QDRANT_API_KEY or None,
-            timeout=30,
-        )
+        if settings.QDRANT_MODE == "local":
+            import os
+            os.makedirs(settings.QDRANT_LOCAL_PATH, exist_ok=True)
+            logger.info(f"Qdrant running in LOCAL mode at: {settings.QDRANT_LOCAL_PATH}")
+            self.client = AsyncQdrantClient(
+                path=settings.QDRANT_LOCAL_PATH,
+            )
+            self._sync_client = QdrantClient(
+                path=settings.QDRANT_LOCAL_PATH,
+            )
+        else:
+            logger.info(f"Qdrant connecting to REMOTE server: {settings.QDRANT_URL}")
+            self.client = AsyncQdrantClient(
+                url=settings.QDRANT_URL,
+                api_key=settings.QDRANT_API_KEY or None,
+                timeout=30,
+            )
+            self._sync_client = QdrantClient(
+                url=settings.QDRANT_URL,
+                api_key=settings.QDRANT_API_KEY or None,
+                timeout=30,
+            )
 
     def get_collection_name(self, user_id: str) -> str:
         """Get the Qdrant collection name for a specific user."""
