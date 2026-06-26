@@ -12,7 +12,7 @@ alembic==1.14.1
 
 # Authentication
 python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+bcrypt==4.1.2
 
 # LLM & RAG
 langchain==0.3.14
