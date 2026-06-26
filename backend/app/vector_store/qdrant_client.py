@@ -42,17 +42,9 @@ class TenantQdrantClient:
             self.client = AsyncQdrantClient(
                 path=settings.QDRANT_LOCAL_PATH,
             )
-            self._sync_client = QdrantClient(
-                path=settings.QDRANT_LOCAL_PATH,
-            )
         else:
             logger.info(f"Qdrant connecting to REMOTE server: {settings.QDRANT_URL}")
             self.client = AsyncQdrantClient(
-                url=settings.QDRANT_URL,
-                api_key=settings.QDRANT_API_KEY or None,
-                timeout=30,
-            )
-            self._sync_client = QdrantClient(
                 url=settings.QDRANT_URL,
                 api_key=settings.QDRANT_API_KEY or None,
                 timeout=30,
