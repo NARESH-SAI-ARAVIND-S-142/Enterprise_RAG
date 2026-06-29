@@ -119,9 +119,8 @@ def _run_ingestion(document_id: str, user_id: str, file_path: str):
 
         # Step 4: Index in Qdrant (80-90%)
         _update_document_status(document_id, "indexing", 80)
-        from app.vector_store.qdrant_client import TenantQdrantClient
-        qdrant = TenantQdrantClient()
-        loop.run_until_complete(qdrant.upsert_chunks(user_id, embedded_chunks))
+        from app.vector_store.qdrant_client import qdrant_client
+        loop.run_until_complete(qdrant_client.upsert_chunks(user_id, embedded_chunks))
         _update_document_status(document_id, "indexing", 90)
 
         # Step 5: Update metadata and mark ready (100%)
