@@ -7,161 +7,174 @@ sdk: docker
 pinned: false
 app_port: 7860
 ---
-# DocuMind 2.0
 
-**The most advanced open-source RAG system — Production-grade, multi-user, agentic document intelligence.**
+# 🧠 DocuMind 2.0
 
-## Architecture
+> **The most advanced open-source, production-grade, multi-tenant agentic RAG platform.**  
+> Built using FastAPI, Next.js 14, LangGraph, and Qdrant, DocuMind 2.0 provides strict user-level data isolation, self-correcting RAG loops, and continuous performance evaluation.
+
+---
+
+## 🗺️ Architectural Blueprint
+
+DocuMind 2.0 employs a modern decoupled architecture capable of running in both microservices mode (Docker Compose) and a unified single-container topology (Hugging Face Spaces).
 
 ```mermaid
 graph TB
-    subgraph Frontend ["Next.js 14 Frontend"]
-        UI[React UI] --> WS[WebSocket Client]
-        UI --> REST[REST API Client]
+    subgraph Frontend ["Next.js 14 App Client"]
+        UI[Tailwind & Framer Motion UI] --> WS[WS Client / Stream Handler]
+        UI --> REST[Axios Client with Auto-Refresh JWT]
     end
 
-    subgraph Backend ["FastAPI Backend"]
-        API[FastAPI Router] --> Auth[JWT Auth]
-        API --> RAG[Agentic RAG Graph]
-        API --> Docs[Document Service]
+    subgraph Proxy ["Routing Layer"]
+        Nginx[Nginx Reverse Proxy / Port 7860]
+    end
+
+    subgraph Backend ["FastAPI Gateway & Graph Controller"]
+        API[FastAPI Router] --> Auth[JWT Authn & Scoping]
+        API --> Graph[LangGraph Agentic RAG Controller]
+        API --> Ingest[Ingestion Gateway]
         API --> Eval[RAGAS Evaluator]
         
-        RAG --> QR[Query Rewriter]
-        QR --> HR[Hybrid Retriever]
-        HR --> RG[Relevance Grader]
-        RG --> Gen[Generator]
-        Gen --> FC[Faithfulness Check]
-        FC --> Cite[Citation Formatter]
+        Graph --> QR[Query Rewriter / HyDE]
+        QR --> HR[5-Stage Hybrid Retriever]
+        HR --> RG[LLM Relevance Grader]
+        RG --> Gen[Grounded Generator]
+        Gen --> FC[Faithfulness Hallucination Guard]
+        FC --> Ref[Self-Refinement Node]
+        Ref --> Cite[Citation & Source Formatter]
     end
 
-    subgraph Data ["Data Layer"]
-        SQLite[(SQLite/PostgreSQL)]
-        Qdrant[(Qdrant Vector DB)]
-        Redis[(Redis)]
+    subgraph Workers ["Async Task Workers"]
+        Celery[Celery Processing Pool]
     end
 
-    subgraph Workers ["Background Workers"]
-        Celery[Celery Worker]
+    subgraph Storage ["Isolated Storage Engines"]
+        SQLite[(SQLite/Postgres Metadata DB)]
+        Qdrant[(Qdrant Tenant-Isolated DB)]
+        Redis[(Redis Message Broker)]
     end
 
-    WS --> API
-    REST --> API
-    Docs --> Celery
+    %% Routing Flow
+    WS --> Nginx
+    REST --> Nginx
+    Nginx --> API
+    Ingest --> Celery
     Celery --> Qdrant
     HR --> Qdrant
     Auth --> SQLite
-    Docs --> SQLite
+    Ingest --> SQLite
     Celery --> Redis
 ```
 
-## Quick Start
+---
 
-### With Docker (recommended)
+## 🚀 Key Features
+
+* **Strict Multi-Tenancy**: Data separation at the database layer (SQLite/Postgres) and the vector layer. Every user gets a dynamic, isolated Qdrant collection (`user_{user_id}_documents`) preventing cross-tenant information leaks.
+* **Agentic Self-Correcting RAG**: Powered by LangGraph, the pipeline evaluates retrieval quality and answers dynamically. If retrieved passages fail relevance grading, or if the generator produces an answer that fails faithfulness checks, the graph rewrites the query and executes corrective retrieval.
+* **5-Stage Hybrid Retrieval**: Uses dense vectors (SentenceTransformers), sparse tokens (BM25), Reciprocal Rank Fusion (RRF), Maximal Marginal Relevance (MMR) re-ranking, and Cross-Encoder validation.
+* **Budget-Aware Compressed Memory**: Implements a sliding token window (via `tiktoken`) that dynamically summarizes old chat history once a 2,000 token limit is reached.
+* **Real-time Streaming**: Connects via WebSockets to stream node-by-node state transitions (e.g., "thinking", "grading", "synthesizing") and token streams.
+* **Production-Grade Analytics (RAGAS)**: A continuous evaluation pipeline tracking *Faithfulness*, *Answer Relevancy*, *Context Precision*, *Context Recall*, and *Answer Correctness* mapped onto animated frontend dashboards.
+
+---
+
+## 🛠️ Deployment Configurations
+
+### Option 1: Multi-Container Setup via Docker Compose (Recommended for Production)
+
+Uses independent, horizontally scalable containers for Redis, Qdrant, the Celery background worker, the Next.js frontend, and the FastAPI backend.
 
 ```bash
-# 1. Clone and configure
+# 1. Clone the project and set up env files
+cd documind-2
 cp backend/.env.example backend/.env
-# Edit backend/.env with your API keys
 
-# 2. Start everything
-docker-compose up --build
+# 2. Add your external keys (GROQ_API_KEY, etc.) to backend/.env
+# 3. Spin up the entire infrastructure
+docker-compose up --build -d
 
-# 3. Open the app
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:8000/docs
-# Qdrant Dashboard: http://localhost:6333/dashboard
+# Ports Exposed:
+# - Frontend Dashboard: http://localhost:3000
+# - Swagger Docs: http://localhost:8000/docs
+# - Vector DB UI: http://localhost:6333/dashboard
 ```
 
-### Manual Setup
+### Option 2: Unified Container Setup (For Hugging Face Spaces & Serverless)
 
-```bash
-# Backend
-cd backend
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env  # Edit with your keys
-uvicorn app.main:app --reload --port 8000
+Hugging Face Spaces only supports single-container deployments without external database dependencies. We adapt the architecture using a unified container:
+- **Nginx** routes traffic on port `7860` between frontend (`/`) and backend (`/auth`, `/documents`, `/chat`).
+- **Supervisord** monitors and executes the unified node and Python processes.
+- **SQLite** handles metadata storage on persistent disk storage (`/data/db`).
+- **Qdrant** is loaded in local disk-based mode (`/data/qdrant_storage`).
+- **Threaded Ingestion** dynamically steps in to process documents when a Celery/Redis queue is not configured.
 
-# Start Redis & Qdrant (Docker)
-docker run -d -p 6379:6379 redis:7-alpine
-docker run -d -p 6333:6333 qdrant/qdrant:latest
+---
 
-# Celery Worker
-celery -A app.documents.ingestion.tasks worker --loglevel=info
+## ⚠️ Challenges & Resolutions (Incident Log)
 
-# Frontend
-cd frontend
-npm install
-npm run dev
+During the development and rollout of DocuMind 2.0, several system integration challenges arose. Below is the documentation of these incidents and how the system was adapted to overcome them:
+
+### 1. Host Port Conflict on Redis `6379`
+* **Symptom**: During initial Docker Compose execution, the Redis container repeatedly crashed, logging a bind error: `Port 0.0.0.0:6379 already allocated`.
+* **Root Cause**: The host machine had an active local Redis instance running.
+* **Resolution**: Implemented checking scripts using `lsof -i :6379` to identify and stop host-level service instances before starting the orchestrator. For production deployments, port mappings are parameterized to easily bind to alternative host ports if `6379` is blocked.
+
+### 2. Missing `email-validator` Dependency on Startup
+* **Symptom**: The backend crashed during uvicorn initialization with `ImportError: email-validator is not installed, run pip install pydantic[email]`.
+* **Root Cause**: Pydantic's `EmailStr` validation type (used in user creation schemas) relies on the third-party `email-validator` library, which was missing from standard requirements.
+* **Resolution**: Updated `requirements.txt` to strictly require `pydantic[email]==2.10.4` to ensure all parsing utilities are pre-bundled in the Docker build context.
+
+### 3. Qdrant Local Mode Locking Conflict (`portalocker.exceptions.AlreadyLocked`)
+* **Symptom**: In the unified Docker environment, the backend kept restarting due to `RuntimeError: Storage folder /data/qdrant_storage is already accessed by another instance of Qdrant client`.
+* **Root Cause**: To support both async operations and generic LangChain integrations, the Qdrant wrapper initialized both `AsyncQdrantClient` and `QdrantClient` targeting the same database path on startup. Because local Qdrant locks its storage directory to prevent corruption, the sync client crashed trying to lock a folder already locked by the async client.
+* **Resolution**: Removed the unused synchronous client initialization from `TenantQdrantClient`. The application now exclusively uses the non-blocking asynchronous client, bypassing double-locking errors.
+
+### 4. Passlib & Bcrypt 4.x Incompatibility Crash
+* **Symptom**: The `/auth/register` endpoint returned a `500 Internal Server Error`, throwing `ValueError: password cannot be longer than 72 bytes` during password hashing.
+* **Root Cause**: The unmaintained library `passlib` (last updated in 2020) fails to safely negotiate types with modern `bcrypt` (4.x) engines. Passlib runs an internal check on startup using a dummy password string > 72 bytes to check the system's hashing behavior, which is aggressively blocked by bcrypt 4.x.
+* **Resolution**: Replaced the entire `passlib` interface with direct, native implementations using the `bcrypt` library (`bcrypt.hashpw` and `bcrypt.checkpw`) inside `app/auth/utils.py`. This fixed the compatibility crash and speeded up auth processing times.
+
+---
+
+## 🔧 Environment Configuration Reference
+
+Create a `.env` file under the `backend/` directory:
+
+```env
+# LLM Providers
+GROQ_API_KEY=gsk_...
+ANTHROPIC_API_KEY=sk_ant_...
+
+# System Modes
+DEPLOY_MODE=hf_spaces      # 'local' | 'docker' | 'hf_spaces'
+QDRANT_MODE=local          # 'remote' | 'local'
+QDRANT_LOCAL_PATH=/data/qdrant_storage
+DATABASE_URL=sqlite+aiosqlite:////data/db/documind.db
+
+# Authentication
+SECRET_KEY=yoursecretkeyhere_minimum_32_characters
+ACCESS_TOKEN_EXPIRE_HOURS=24
+
+# Observability
+LANGCHAIN_TRACING_V2=false
+LANGCHAIN_API_KEY=lsv2_...
 ```
 
-## Environment Variables
+---
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `GROQ_API_KEY` | Groq API key for LLM | ✅ |
-| `ANTHROPIC_API_KEY` | Anthropic API key (Claude fallback) | ❌ |
-| `QDRANT_URL` | Qdrant server URL | ✅ |
-| `DATABASE_URL` | SQLAlchemy database URL | ✅ |
-| `REDIS_URL` | Redis connection URL | ✅ |
-| `SECRET_KEY` | JWT signing key (min 32 chars) | ✅ |
-| `LANGCHAIN_API_KEY` | LangSmith API key | ❌ |
-| `UPLOAD_DIR` | File upload directory | ✅ |
+## 🧪 Testing Suite
 
-## Agentic RAG Graph
-
-The RAG pipeline uses LangGraph with 7 self-correcting nodes:
-
-1. **Query Rewriter** — Decomposes multi-part questions, generates HyDE documents, step-back prompting
-2. **Hybrid Retriever** — Dense (cosine) + BM25 (keyword) + Reciprocal Rank Fusion + MMR + CrossEncoder
-3. **Relevance Grader** — LLM grades each chunk, filters irrelevant ones
-4. **Generator** — Produces answer grounded in retrieved context
-5. **Faithfulness Checker** — Extracts claims and verifies against sources (threshold: 0.8)
-6. **Answer Refiner** — Rewrites hallucinated answers to be grounded
-7. **Citation Formatter** — Structures source references with page numbers
-
-## RAGAS Evaluation
-
-Five metrics tracked continuously:
-
-| Metric | Description | Threshold |
-|--------|-------------|-----------|
-| **Faithfulness** | Is the answer grounded in context? | ≥ 0.8 🟢 |
-| **Answer Relevancy** | Does the answer address the question? | ≥ 0.8 🟢 |
-| **Context Precision** | Are retrieved chunks relevant? | ≥ 0.6 🟡 |
-| **Context Recall** | Was all needed info retrieved? | ≥ 0.6 🟡 |
-| **Answer Correctness** | Is the answer factually correct? | ≥ 0.8 🟢 |
-
-## DocuMind 1.0 vs 2.0
-
-| Feature | v1.0 | v2.0 |
-|---------|------|------|
-| Frontend | Streamlit | Next.js 14 |
-| Backend | Single app.py | FastAPI (async) |
-| Auth | None | JWT + multi-tenant |
-| Vector DB | FAISS (shared) | Qdrant (per-user) |
-| Chunking | Fixed 800 chars | Semantic + structural |
-| Retrieval | Dense only | Hybrid 5-stage |
-| RAG Pipeline | Linear chain | LangGraph agentic |
-| Memory | Raw history | Token-budget compressed |
-| Ingestion | Synchronous | Async (Celery) |
-| Evaluation | None | RAGAS (5 metrics) |
-| Streaming | Streamlit | WebSocket |
-| Observability | None | LangSmith + Loguru |
-
-## Tech Stack
-
-**Backend:** Python 3.12, FastAPI, LangChain, LangGraph, Qdrant, Celery, Redis, SQLAlchemy  
-**Frontend:** Next.js 14, TypeScript, Tailwind CSS, Zustand, Framer Motion  
-**Infra:** Docker, Docker Compose, Qdrant, Redis
-
-## Testing
+To run tests against the backend routers, the LangGraph agent, and document ingestion utilities, execute:
 
 ```bash
 cd backend
-pytest tests/ -v
+python -m pytest tests/ -v
 ```
 
-## License
+---
 
-MIT
+## 📄 License
+
+This project is licensed under the MIT License.
