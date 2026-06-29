@@ -32,7 +32,7 @@ api.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem("refresh_token");
         if (refreshToken) {
-          const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+          const { data } = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
             refresh_token: refreshToken,
           });
           localStorage.setItem("access_token", data.access_token);
@@ -55,12 +55,12 @@ api.interceptors.response.use(
 // ── Auth API ──────────────────────────────────────────────────
 export const authApi = {
   register: (email: string, password: string, fullName?: string) =>
-    api.post("/auth/register", { email, password, full_name: fullName }),
+    api.post("/api/auth/register", { email, password, full_name: fullName }),
 
   login: (email: string, password: string) =>
-    api.post("/auth/login", { email, password }),
+    api.post("/api/auth/login", { email, password }),
 
-  getMe: () => api.get("/auth/me"),
+  getMe: () => api.get("/api/auth/me"),
 };
 
 // ── Documents API ─────────────────────────────────────────────
@@ -68,51 +68,51 @@ export const documentsApi = {
   upload: (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    return api.post("/documents/upload", formData, {
+    return api.post("/api/documents/upload", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
   },
 
   list: (page = 1, perPage = 20, status?: string) =>
-    api.get("/documents/", { params: { page, per_page: perPage, status } }),
+    api.get("/api/documents/", { params: { page, per_page: perPage, status } }),
 
   getStatus: (documentId: string) =>
-    api.get(`/documents/${documentId}/status`),
+    api.get(`/api/documents/${documentId}/status`),
 
   delete: (documentId: string) =>
-    api.delete(`/documents/${documentId}`),
+    api.delete(`/api/documents/${documentId}`),
 };
 
 // ── Chat API ──────────────────────────────────────────────────
 export const chatApi = {
   createSession: (title?: string, documentIds: string[] = []) =>
-    api.post("/chat/sessions", { title, document_ids: documentIds }),
+    api.post("/api/chat/sessions", { title, document_ids: documentIds }),
 
-  listSessions: () => api.get("/chat/sessions"),
+  listSessions: () => api.get("/api/chat/sessions"),
 
   getMessages: (sessionId: string) =>
-    api.get(`/chat/sessions/${sessionId}/messages`),
+    api.get(`/api/chat/sessions/${sessionId}/messages`),
 
   query: (query: string, documentIds: string[] = [], model?: string) =>
-    api.post("/chat/query", { query, document_ids: documentIds, model }),
+    api.post("/api/chat/query", { query, document_ids: documentIds, model }),
 
   submitFeedback: (messageId: string, feedback: "thumbs_up" | "thumbs_down") =>
-    api.post(`/chat/messages/${messageId}/feedback`, { feedback }),
+    api.post(`/api/chat/messages/${messageId}/feedback`, { feedback }),
 
   deleteSession: (sessionId: string) =>
-    api.delete(`/chat/sessions/${sessionId}`),
+    api.delete(`/api/chat/sessions/${sessionId}`),
 };
 
 // ── Evaluation API ────────────────────────────────────────────
 export const evalApi = {
   run: (documentIds: string[]) =>
-    api.post("/eval/run", null, {
+    api.post("/api/eval/run", null, {
       params: { document_ids: documentIds },
     }),
 
-  getResults: (evalId: string) => api.get(`/eval/results/${evalId}`),
+  getResults: (evalId: string) => api.get(`/api/eval/results/${evalId}`),
 
-  getHistory: () => api.get("/eval/history"),
+  getHistory: () => api.get("/api/eval/history"),
 };
 
 export default api;

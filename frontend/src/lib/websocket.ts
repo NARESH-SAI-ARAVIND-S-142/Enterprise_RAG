@@ -28,7 +28,7 @@ export class ChatWebSocket {
       wsBase = `${proto}//${window.location.host}`;
     }
     if (!wsBase) wsBase = "ws://localhost:8000";
-    const url = `${wsBase}/chat/ws/${sessionId}?token=${token}`;
+    const url = `${wsBase}/api/chat/ws/${sessionId}?token=${token}`;
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {

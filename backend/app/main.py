@@ -77,10 +77,10 @@ from app.documents.router import router as documents_router  # noqa: E402
 from app.rag.router import router as rag_router  # noqa: E402
 from app.evaluation.router import router as eval_router  # noqa: E402
 
-app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
-app.include_router(documents_router, prefix="/documents", tags=["Documents"])
-app.include_router(rag_router, prefix="/chat", tags=["Chat & RAG"])
-app.include_router(eval_router, prefix="/eval", tags=["Evaluation"])
+app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(documents_router, prefix="/api/documents", tags=["Documents"])
+app.include_router(rag_router, prefix="/api/chat", tags=["Chat & RAG"])
+app.include_router(eval_router, prefix="/api/eval", tags=["Evaluation"])
 
 
 # ── Health Check ───────────────────────────────────────────────
