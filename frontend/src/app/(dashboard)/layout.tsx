@@ -16,18 +16,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    loadUser();
+    const checkAuth = async () => {
+      await loadUser();
+      setIsChecking(false);
+    };
+    checkAuth();
   }, [loadUser]);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!isChecking && !isAuthenticated) {
       router.push("/login");
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isChecking, isAuthenticated, router]);
 
-  if (isLoading) {
+  if (isChecking || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "hsl(var(--background))" }}>
         <div className="flex flex-col items-center gap-4">
